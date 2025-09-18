@@ -36,14 +36,18 @@ class LimitedVariable {
   #violated = false;         // Tracks if any violation occurred (for strict mode reading)
   #onViolationCalled = false; // Ensures onViolation callback called only once
 
+  // Deep mutation tracking
+  #deepProxies = new WeakMap(); // Tracks wrapped objects to prevent double-wrapping
+  #mutationPath = [];           // Tracks the current mutation path for better error messages
+
   constructor(initialValue, maxMutations = 1, options = {}) {
-    this.#value = initialValue;
     this.#maxMutations = maxMutations;
     this.#options = {
       trackHistory: true,
       strictMode: true,
       allowReset: false,
       autoFreeze: true,
+      trackDeepMutations: true,  // NEW: Track object/array property mutations by default
       onMutate: null,
       onViolation: null,
       onLastMutation: null,
@@ -57,6 +61,13 @@ class LimitedVariable {
     // we want to continue tracking violations rather than freezing the variable
     if (!this.#options.strictMode) {
       this.#options.autoFreeze = false;
+    }
+
+    // Set initial value with deep proxy wrapping if needed
+    if (this.#options.trackDeepMutations && this.#isObjectOrArray(initialValue)) {
+      this.#value = this.#createDeepProxy(initialValue, []);
+    } else {
+      this.#value = initialValue;
     }
 
     if (this.#options.trackHistory) {
@@ -170,7 +181,14 @@ class LimitedVariable {
     }
 
     const oldValue = this.#value;
-    this.#value = newValue;
+
+    // Wrap newValue in deep proxy if it's an object/array and deep tracking is enabled
+    if (this.#options.trackDeepMutations && this.#isObjectOrArray(newValue)) {
+      this.#value = this.#createDeepProxy(newValue, []);
+    } else {
+      this.#value = newValue;
+    }
+
     this.#mutationCount++;
 
     if (this.#options.trackHistory) {
@@ -253,6 +271,14 @@ class LimitedVariable {
     this.#violated = false;
     this.#onViolationCalled = false;
 
+    // Clear deep proxy mappings but keep the existing proxied value
+    // The existing proxies will continue to work and track mutations correctly
+    this.#deepProxies = new WeakMap();
+    this.#mutationPath = [];
+
+    // No need to re-wrap the current value - existing proxies are still valid
+    // and will continue to track mutations against the reset mutation count
+
     if (this.#options.trackHistory) {
       this.#history.push({
         value: this.#value,
@@ -279,6 +305,267 @@ class LimitedVariable {
       frozen: this.#frozen,
       history: this.#options.trackHistory ? this.#history : undefined
     };
+  }
+
+  // === DEEP MUTATION TRACKING IMPLEMENTATION ===
+
+  #isObjectOrArray(value) {
+    return value !== null && (typeof value === 'object') && !this.#isSpecialObject(value);
+  }
+
+  #isSpecialObject(value) {
+    // Don't wrap certain built-in objects that shouldn't be proxied
+    return value instanceof Date ||
+           value instanceof RegExp ||
+           value instanceof Error ||
+           value instanceof Promise ||
+           (typeof Buffer !== 'undefined' && value instanceof Buffer);
+  }
+
+  #createDeepProxy(obj, path) {
+    // Prevent double-wrapping
+    if (this.#deepProxies.has(obj)) {
+      return this.#deepProxies.get(obj);
+    }
+
+    // Handle circular references by marking this object as being processed
+    const processedObjects = new WeakSet();
+
+    const createProxy = (target, currentPath) => {
+      if (processedObjects.has(target)) {
+        return target; // Return unwrapped to avoid circular proxy chains
+      }
+      processedObjects.add(target);
+
+      // Eagerly proxy all nested objects/arrays
+      if (Array.isArray(target)) {
+        for (let i = 0; i < target.length; i++) {
+          if (this.#isObjectOrArray(target[i]) && !this.#deepProxies.has(target[i])) {
+            target[i] = createProxy(target[i], [...currentPath, i]);
+          }
+        }
+        return this.#createArrayProxy(target, currentPath);
+      } else if (this.#isObjectOrArray(target)) {
+        for (const key in target) {
+          if (target.hasOwnProperty(key) && this.#isObjectOrArray(target[key]) && !this.#deepProxies.has(target[key])) {
+            target[key] = createProxy(target[key], [...currentPath, key]);
+          }
+        }
+        return this.#createObjectProxy(target, currentPath);
+      }
+      return target;
+    };
+
+    const proxy = createProxy(obj, path);
+    this.#deepProxies.set(obj, proxy);
+    return proxy;
+  }
+
+  #createObjectProxy(obj, path) {
+    return new Proxy(obj, {
+      set: (target, prop, value, receiver) => {
+        const newPath = [...path, prop];
+        this.#handleDeepMutation(newPath, value, target[prop]);
+
+        // Wrap the new value if it's an object/array
+        if (this.#isObjectOrArray(value)) {
+          value = this.#createDeepProxy(value, newPath);
+        }
+
+        return Reflect.set(target, prop, value, receiver);
+      },
+
+      deleteProperty: (target, prop) => {
+        const newPath = [...path, prop];
+        this.#handleDeepMutation(newPath, undefined, target[prop], 'delete');
+        return Reflect.deleteProperty(target, prop);
+      },
+
+      get: (target, prop, receiver) => {
+        return Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+
+  #createArrayProxy(arr, path) {
+    const mutatingMethods = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill'];
+
+    return new Proxy(arr, {
+      set: (target, prop, value, receiver) => {
+        // Handle array index assignments: arr[0] = value
+        if (prop !== 'length' && /^\d+$/.test(prop)) {
+          const newPath = [...path, prop];
+          this.#handleDeepMutation(newPath, value, target[prop]);
+
+          if (this.#isObjectOrArray(value)) {
+            value = this.#createDeepProxy(value, newPath);
+          }
+        }
+
+        return Reflect.set(target, prop, value, receiver);
+      },
+
+      get: (target, prop, receiver) => {
+        const value = Reflect.get(target, prop, receiver);
+
+        // Intercept mutating array methods
+        if (mutatingMethods.includes(prop)) {
+          return (...args) => {
+            this.#handleDeepMutation([...path, `${prop}()`], args, undefined, 'array-method');
+
+            // Call the original method
+            const result = value.apply(target, args);
+
+            // Re-wrap any newly added objects/arrays
+            this.#rewrapArrayElements(target, path);
+
+            return result;
+          };
+        }
+
+        return value;
+      }
+    });
+  }
+
+  #rewrapArrayElements(arr, path) {
+    for (let i = 0; i < arr.length; i++) {
+      if (this.#isObjectOrArray(arr[i]) && !this.#deepProxies.has(arr[i])) {
+        arr[i] = this.#createDeepProxy(arr[i], [...path, i]);
+      }
+    }
+  }
+
+  #handleDeepMutation(path, newValue, oldValue, mutationType = 'property') {
+    // This is where we increment the mutation count for deep mutations
+    this.#mutationPath = path;
+
+    if (this.#frozen) {
+      this.#violated = true;
+      const pathStr = path.join('.');
+      const message = this.#options.errorMessage ||
+        `Variable is frozen. Deep mutation attempted at path: ${pathStr}`;
+      const error = new MutationLimitExceeded(message, {
+        maxMutations: this.#maxMutations,
+        currentMutations: this.#mutationCount,
+        attemptedValue: newValue,
+        currentValue: oldValue,
+        mutationPath: pathStr,
+        mutationType,
+        frozen: true
+      });
+
+      if (this.#options.onViolation && !this.#onViolationCalled) {
+        this.#onViolationCalled = true;
+        this.#options.onViolation(error);
+      }
+
+      if (this.#options.strictMode) {
+        throw error;
+      }
+      return;
+    }
+
+    // Check if we've exceeded the mutation limit
+    if (this.#mutationCount >= this.#maxMutations) {
+      this.#violated = true;
+      this.#violationCount++;
+
+      const pathStr = path.join('.');
+      const violationAttempt = {
+        attemptNumber: this.#violationCount,
+        attemptedValue: newValue,
+        currentValue: oldValue,
+        mutationCount: this.#mutationCount,
+        violationCount: this.#violationCount,
+        timestamp: Date.now(),
+        totalAttempts: this.#mutationCount + this.#violationCount,
+        mutationPath: pathStr,
+        mutationType
+      };
+
+      if (this.#options.onLimitExceeded) {
+        this.#options.onLimitExceeded(violationAttempt);
+      }
+
+      if (this.#options.strictMode) {
+        const message = this.#options.errorMessage ||
+          `Mutation limit exceeded at path: ${pathStr}. Maximum ${this.#maxMutations} mutation(s) allowed, attempted mutation #${this.#mutationCount + this.#violationCount}`;
+        const error = new MutationLimitExceeded(message, {
+          maxMutations: this.#maxMutations,
+          currentMutations: this.#mutationCount,
+          attemptedValue: newValue,
+          currentValue: oldValue,
+          mutationPath: pathStr,
+          mutationType,
+          history: this.#options.trackHistory ? this.#history : undefined
+        });
+
+        if (this.#options.onViolation && !this.#onViolationCalled) {
+          this.#onViolationCalled = true;
+          this.#options.onViolation(error);
+        }
+        throw error;
+      }
+
+      // Non-strict mode: Allow the violation but track it
+      if (!this.#options.strictMode) {
+        if (this.#options.trackHistory) {
+          this.#history.push({
+            value: newValue,
+            previousValue: oldValue,
+            timestamp: Date.now(),
+            mutation: this.#mutationCount,
+            mutationPath: pathStr,
+            mutationType,
+            type: 'violation'
+          });
+        }
+      }
+      return;
+    }
+
+    // This is a valid mutation
+    this.#mutationCount++;
+
+    if (this.#options.trackHistory) {
+      const pathStr = path.join('.');
+      this.#history.push({
+        value: newValue,
+        previousValue: oldValue,
+        timestamp: Date.now(),
+        mutation: this.#mutationCount,
+        mutationPath: pathStr,
+        mutationType,
+        type: 'deep-mutation'
+      });
+    }
+
+    if (this.#options.onMutate) {
+      this.#options.onMutate({
+        newValue,
+        oldValue,
+        mutationCount: this.#mutationCount,
+        remaining: this.remaining,
+        mutationPath: path.join('.'),
+        mutationType
+      });
+    }
+
+    if (this.#mutationCount === this.#maxMutations) {
+      if (this.#options.onLastMutation) {
+        this.#options.onLastMutation({
+          value: newValue,
+          mutationPath: path.join('.'),
+          mutationType,
+          history: this.#options.trackHistory ? this.#history : undefined
+        });
+      }
+
+      if (this.#options.autoFreeze) {
+        this.#frozen = true;
+      }
+    }
   }
 }
 

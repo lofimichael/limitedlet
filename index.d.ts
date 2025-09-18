@@ -5,6 +5,8 @@ export interface MutationContext {
   currentValue?: any;
   history?: HistoryEntry[];
   frozen?: boolean;
+  mutationPath?: string;
+  mutationType?: 'property' | 'delete' | 'array-method';
 }
 
 export class MutationLimitExceeded extends Error {
@@ -18,7 +20,9 @@ export interface HistoryEntry {
   previousValue?: any;
   timestamp: number;
   mutation: number;
-  type: 'initial' | 'mutation' | 'reset' | 'violation';
+  type: 'initial' | 'mutation' | 'reset' | 'violation' | 'deep-mutation';
+  mutationPath?: string;
+  mutationType?: 'property' | 'delete' | 'array-method';
 }
 
 export interface MutationEvent<T> {
@@ -26,11 +30,15 @@ export interface MutationEvent<T> {
   oldValue: T;
   mutationCount: number;
   remaining: number;
+  mutationPath?: string;
+  mutationType?: 'property' | 'delete' | 'array-method';
 }
 
 export interface LastMutationEvent<T> {
   value: T;
   history?: HistoryEntry[];
+  mutationPath?: string;
+  mutationType?: 'property' | 'delete' | 'array-method';
 }
 
 export interface ViolationAttempt<T> {
@@ -41,6 +49,8 @@ export interface ViolationAttempt<T> {
   violationCount: number;
   timestamp: number;
   totalAttempts: number;
+  mutationPath?: string;
+  mutationType?: 'property' | 'delete' | 'array-method';
 }
 
 export interface LimitedLetOptions<T = any> {
@@ -48,6 +58,7 @@ export interface LimitedLetOptions<T = any> {
   strictMode?: boolean;
   allowReset?: boolean;
   autoFreeze?: boolean;
+  trackDeepMutations?: boolean; // NEW: Enable deep mutation tracking (default: true)
   onMutate?: (event: MutationEvent<T>) => void;
   onViolation?: (error: MutationLimitExceeded) => void;
   onLastMutation?: (event: LastMutationEvent<T>) => void;
