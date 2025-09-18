@@ -1,0 +1,63 @@
+# Source files and development assets
+refcode/
+react-example/
+.git/
+.gitignore
+
+# Development dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage and test artifacts
+coverage/
+.nyc_output
+*.lcov
+
+# Development configuration
+.vscode/
+.idea/
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Build artifacts (keep only the main build)
+dist/
+build/
+
+# Documentation development files
+docs/
+
+# Example source that shouldn't be in published package
+src/
+
+# Lock files (let users choose their package manager)
+package-lock.json
+yarn.lock
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Keep these files in the published package:
+# package.json (automatically included)
+# README.md (automatically included)
+# LICENSE (automatically included)
+# index.js (specified in package.json files)
+# index.d.ts (specified in package.json files)
+# examples/ (specified in package.json files)
+# test/ (specified in package.json files)

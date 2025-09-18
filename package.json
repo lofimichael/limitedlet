@@ -1,0 +1,53 @@
+{
+  "name": "limitedlet",
+  "version": "1.0.0",
+  "description": "Limited mutable variables - variables that can only be mutated a specific number of times",
+  "main": "index.js",
+  "module": "index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./index.js",
+      "import": "./index.mjs",
+      "types": "./index.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "node test/limitedLet.test.js",
+    "demo": "node examples/demo.js"
+  },
+  "keywords": [
+    "limited",
+    "mutable",
+    "variable",
+    "const",
+    "let",
+    "immutable",
+    "mutation",
+    "control",
+    "typescript",
+    "javascript"
+  ],
+  "author": "michael",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/limitedlet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/limitedlet/issues"
+  },
+  "homepage": "https://github.com/username/limitedlet#readme",
+  "files": [
+    "index.js",
+    "index.mjs",
+    "index.d.ts",
+    "examples/",
+    "test/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}
