@@ -809,7 +809,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### Development Setup
 
 ```bash
-git clone https://github.com/username/limitedlet.git
+git clone https://github.com/lofimichael/limitedlet.git
 cd limitedlet
 npm install
 npm test           # Run tests
@@ -840,7 +840,7 @@ MIT © [limitedlet contributors](LICENSE)
 
 <div align="center">
 
-**[⭐ Star us on GitHub](https://github.com/username/limitedlet)** • **[📚 View Docs](https://docs.limitedlet.dev)** • **[💬 Join Discussion](https://github.com/username/limitedlet/discussions)**
+**[⭐ Star us on GitHub](https://github.com/lofimichael/limitedlet)** • **[📚 View Docs](https://docs.limitedlet.dev)** • **[💬 Join Discussion](https://github.com/lofimichael/limitedlet/discussions)**
 
 Made with ❤️ for developers who need **controlled mutability**
 

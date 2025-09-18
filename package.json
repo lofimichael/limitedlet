@@ -32,12 +32,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/username/limitedlet.git"
+    "url": "https://github.com/lofimichael/limitedlet.git"
   },
   "bugs": {
-    "url": "https://github.com/username/limitedlet/issues"
+    "url": "https://github.com/lofimichael/limitedlet/issues"
   },
-  "homepage": "https://github.com/username/limitedlet#readme",
+  "homepage": "https://github.com/lofimichael/limitedlet#readme",
   "files": [
     "index.js",
     "index.mjs",
