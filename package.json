@@ -1,6 +1,6 @@
 {
   "name": "limitedlet",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Limited mutable variables - variables that can only be mutated a specific number of times",
   "main": "index.js",
   "module": "index.mjs",
