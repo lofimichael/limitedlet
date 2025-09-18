@@ -780,7 +780,7 @@ assert.equal(json.remaining, 0);
 
 `limitedlet` is designed for minimal overhead:
 
-- **Memory**: ~2KB gzipped, zero dependencies
+- **Memory**: ~18KB compressed, zero dependencies
 - **CPU**: Proxy overhead ~0.1ms per access
 - **History**: Optional tracking, disabled for production if needed
 
