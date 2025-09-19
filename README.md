@@ -840,7 +840,7 @@ MIT © [limitedlet contributors](LICENSE)
 
 <div align="center">
 
-**[⭐ Star us on GitHub](https://github.com/lofimichael/limitedlet)** • **[📚 View Docs](https://docs.limitedlet.dev)** • **[💬 Join Discussion](https://github.com/lofimichael/limitedlet/discussions)**
+**[⭐ Star us on GitHub](https://github.com/lofimichael/limitedlet)** • **[💬 Join Discussion](https://github.com/lofimichael/limitedlet/discussions)**
 
 Made with ❤️ for developers who need **controlled mutability**
 
