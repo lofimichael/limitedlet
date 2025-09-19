@@ -834,7 +834,7 @@ The demo showcases real-world usage patterns including:
 
 ## 📄 License
 
-MIT © [limitedlet contributors](LICENSE)
+MIT © [Contributors](LICENSE)
 
 ---
 
